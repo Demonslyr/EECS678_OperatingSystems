@@ -60,31 +60,22 @@ static int available_chopsticks[NUM_CHOPS];
  *      - Left chopstick has same number as philosopher
  *      - Right chopstick is (philosopher number - 1) modulo NUM_CHOPS
  */
+ //get pointer to left philosopher
 philosopher *left_phil (philosopher *p)
 {
   return &Diners[(p->id == (NUM_PHILS-1) ? 0 : (p->id)+1)];
 }
-
+//get pointer to right philosopher
 philosopher *right_phil (philosopher *p)
 {
   return &Diners[(p->id == 0 ? (NUM_PHILS-1) : (p->id)-1)];
 }
-
-pthread_mutex_t *left_chop (philosopher *p)
-{
-  return &chopstick[p->id];
-}
-
-pthread_mutex_t *right_chop (philosopher *p)
-{
-  return &chopstick[(p->id == 0 ? NUM_CHOPS-1 : (p->id)-1)];
-}
-
+//returns a pointer to an array location that ideally contains a 1 for available and 0 for taken
 int *left_chop_available (philosopher *p)
 {
   return &available_chopsticks[p->id];
 }
-
+//returns a pointer to an array location that ideally contains a 1 for available and 0 for taken
 int *right_chop_available (philosopher *p)
 {
   return &available_chopsticks[(p->id == 0 ? NUM_CHOPS-1 : (p->id)-1)];
@@ -116,6 +107,33 @@ void eat_one_mouthful()
  * Philosopher code which makes each philosopher eat and think for a
  * random period of time.
  */
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//refrenced in slides but not in code
+static bool my_chopsticks_free(philosopher *p)
+{
+return (*left_chop_available(p) && *right_chop_available(p));
+}
+static void mark_my_chopsticks_taken(philosopher *p)
+{
+*left_chop_available(p)=0;
+*right_chop_available(p)=0;
+}
+static void mark_my_chopsticks_free(philosopher *p)
+{
+*left_chop_available(p)=1;
+*right_chop_available(p)=1;
+}
+static void signal_those_who_care(philosopher *p)
+{
+  pthread_cond_signal(&(left_phil(p)->can_eat));
+  pthread_cond_signal(&(right_phil(p)->can_eat));
+
+}
+
+
+
 static void *dp_thread(void *arg)
 {
   int          eat_rnd;
@@ -152,9 +170,16 @@ static void *dp_thread(void *arg)
     /*
      * Grab both chopsticks: ASYMMETRIC and WAITER SOLUTION
      */
-    pthread_mutex_lock(left_chop(me));
-    pthread_mutex_lock(right_chop(me));
+    pthread_mutex_lock(&waiter);
 
+    while(!(my_chopsticks_free(me)))
+    {
+     pthread_cond_wait(&(me->can_eat),&waiter);
+    }
+
+    mark_my_chopsticks_taken(me);
+
+    pthread_mutex_unlock(&waiter);
     /*
      * Eat some random amount of food. Again, this involves a
      * subroutine call for each mouthful, which is a feature, not a
@@ -167,8 +192,14 @@ static void *dp_thread(void *arg)
     /*
      * Release both chopsticks: WAITER SOLUTION
      */
-    pthread_mutex_unlock(right_chop(me));
-    pthread_mutex_unlock(left_chop(me));
+
+    pthread_mutex_lock(&waiter);
+
+    mark_my_chopsticks_free(me);
+
+    signal_those_who_care(me);
+
+    pthread_mutex_unlock(&waiter);
 
     /* 
      * Update my progress in current session and for all time.
@@ -182,6 +213,11 @@ static void *dp_thread(void *arg)
    */
   return NULL;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 /*
  * Set up the table with the correct number of chopsticks and

@@ -13,7 +13,7 @@ dp_asymmetric: dp_asymmetric.c
 	gcc -g dp_asymmetric.c -lpthread -lm -o dp_asymmetric
 
 dp_waiter: dp_waiter.c
-	gcc -g dp_waiter.c -lpthread -lm -o dp_waiter
+	g++ -g dp_waiter.c -lpthread -lm -o dp_waiter
 
 # Add the dp_asymmetric_test and dp_waiter_test targets to test as you implement
 # them
