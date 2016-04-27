@@ -16,7 +16,7 @@
 #define NUM_CHOPS NUM_PHILS
 #define FIELDS_TO_IGNORE 13
 
-#define DEADLOCK 1
+#define DEADLOCK 0
 #define ACTIVE_DURATION 200
 
 typedef struct {
@@ -219,6 +219,7 @@ int check_for_deadlock()
 
   unsigned long new_sys_time;
   unsigned long new_user_time;
+ // unsigned long old_system_time;
 
   deadlock = 1;
   for (i = 0; i < NUM_PHILS; i++) {
@@ -257,7 +258,7 @@ int check_for_deadlock()
      */ 
 
 
-     fscanf(statf, "%lu %lu", &new_sys_time, &new_user_time);
+     fscanf(statf, "%lu %lu", &new_user_time, &new_sys_time);
 
 
    
@@ -266,11 +267,17 @@ int check_for_deadlock()
      */
    
  
-     printf("systime: %lu, usertime: %lu\n",new_sys_time, new_user_time);
-    deadlock = 0;
+    // printf("systime: %lu, usertime: %lu\n",new_sys_time, new_user_time);
 
-
-
+	if(new_user_time != user_time[i] || new_sys_time != sys_time[i])
+	{
+	  deadlock = 0;
+	}	
+	
+	sys_progress[i] = new_sys_time - sys_time[i];
+	user_progress[i] = new_user_time - user_time[i];
+	user_time[i] = new_user_time;
+	sys_time[i] = new_sys_time;
 
     /*
      * 6. Close the stat file stream 
